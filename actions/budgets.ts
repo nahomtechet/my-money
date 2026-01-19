@@ -70,7 +70,7 @@ export async function deleteBudget(id: string) {
 
 export async function getBudgetsWithProgress() {
     const session = await auth()
-    if (!session?.user?.id) return { budgets: [], categories: [] }
+    if (!session?.user?.id) return { budgets: [], categories: [], totalBudgeted: 0, totalSpent: 0 }
 
     const userId = session.user.id
     const now = new Date()

@@ -14,6 +14,4 @@ export default async function Dashboard() {
         />
     )
 }
-function cn(...inputs: any[]) {
-    return inputs.filter(Boolean).join(" ")
-}
+

@@ -486,7 +486,7 @@ export default function SettingsPage() {
                                 <Moon className="w-12 h-12 text-slate-300 mb-4" />
                                 <h3 className="text-sm font-black text-slate-800 tracking-tight">Coming Soon: Dark Mode</h3>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">
-                                    We're working on a beautiful dark experience<br/>to help you track your money at night.
+                                    We&apos;re working on a beautiful dark experience<br/>to help you track your money at night.
                                 </p>
                             </GlassCard>
 
