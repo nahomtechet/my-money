@@ -140,6 +140,7 @@ model Goal {
   currentValue Float     @default(0)
   deadline     DateTime?
   color        String?
+  icon         String?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

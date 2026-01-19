@@ -98,12 +98,43 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
 
   const currentCategoryList = type === "EXPENSE" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
 
+
+  const [description, setDescription] = useState("")
+
+  // Smart Predictive Categorization
+  const PREDICTIVE_CATEGORIES: Record<string, string> = {
+    "uber": "Transport", "ride": "Transport", "taxi": "Transport", "bus": "Transport", "fuel": "Transport", "gas": "Transport",
+    "food": "Food", "dinner": "Food", "lunch": "Food", "breakfast": "Food", "restaurant": "Food", "burger": "Food", "pizza": "Food", "coffee": "Food", "cafe": "Food",
+    "grocer": "Shopping", "supermarket": "Shopping", "shop": "Shopping", "cloth": "Shopping", "shoe": "Shopping",
+    "netflix": "Entertainment", "spotify": "Entertainment", "movie": "Entertainment", "cinema": "Entertainment", "game": "Entertainment",
+    "bill": "Bills", "electric": "Bills", "water": "Bills", "internet": "Bills", "wifi": "Bills", "rent": "Bills",
+    "gym": "Health", "doctor": "Health", "pharmacy": "Health", "med": "Health",
+    "course": "Education", "book": "Education", "school": "Education", "tuition": "Education"
+  }
+
+  useEffect(() => {
+    if (!description) return
+    const lowerDesc = description.toLowerCase()
+    
+    // Find matching category keyword
+    const matchedKey = Object.keys(PREDICTIVE_CATEGORIES).find(key => lowerDesc.includes(key))
+    if (matchedKey) {
+        const categoryName = PREDICTIVE_CATEGORIES[matchedKey]
+        // Only auto-select if user hasn't manually selected another category (or if current is null)
+        // For smoother UX, we can just update it.
+        setSelectedCategoryName(categoryName)
+    }
+  }, [description])
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+    // ... existing logic ...
     const formData = new FormData(e.currentTarget)
     const data: any = Object.fromEntries(formData)
     
-    // Logic for categoryId vs categoryName
+    // Ensure description is included since we're controlling it now
+    data.description = description
+    
+    // ... rest of submit logic
     const matchedCategory = categories.find(c => c.name === selectedCategoryName && c.type === type)
     
     if (selectedCategoryName === "Other") {
@@ -133,6 +164,7 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
       
       if (response.ok) {
         setOpen(false)
+        setDescription("") // Reset description
         if (onSuccess) onSuccess()
         router.refresh()
       } else {
@@ -157,7 +189,7 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
             <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-2xl bg-white/20 text-white">
                 <Plus className="w-6 h-6" />
             </div>
-            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-tight text-center">Add<br/>Transaction</span>
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest leading-tight text-center">Add</span>
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[420px] rounded-[2.5rem] border-0 bg-white shadow-2xl p-0 overflow-y-auto max-h-[90vh]">
@@ -203,6 +235,28 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-4">
+                    {/* Description - SMART FIELD MOVED UP */}
+                    <div className="space-y-2">
+                        <Label htmlFor="description" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Description</Label>
+                        <div className="relative">
+                            <Input 
+                                id="description" 
+                                name="description" 
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="e.g. Uber to work, Lunch at Cafe..." 
+                                required 
+                                className="rounded-2xl h-14 md:h-16 bg-[#fdf8f4] border-[#f9f1e8] font-bold pl-6 focus:ring-teal-500/20 focus:bg-white transition-all border-0 shadow-none ring-offset-0 focus-visible:ring-0"
+                            />
+                             {/* Hint Icon if category detected */}
+                             {description && selectedCategoryName && (
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-teal-500 animate-in fade-in zoom-in">
+                                    <span className="text-xs font-black uppercase mr-1">{selectedCategoryName}</span>
+                                </div>
+                             )}
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="amount" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Amount (ETB)</Label>
                         <div className="relative">
@@ -235,7 +289,7 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
                                 </option>
                             ))}
                         </select>
-                        {accounts.length === 0 && (
+                         {accounts.length === 0 && (
                             <p className="text-[8px] font-bold text-slate-400 uppercase px-2">
                                 Tip: Add bank/mobile accounts in <Link href="/settings" className="text-teal-600 hover:underline">Settings</Link>
                             </p>
@@ -341,17 +395,6 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
                             </motion.div>
                         )}
                     </AnimatePresence>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="description" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Description</Label>
-                        <Input 
-                            id="description" 
-                            name="description" 
-                            placeholder="What's this for?" 
-                            required 
-                            className="rounded-2xl h-14 md:h-16 bg-[#fdf8f4] border-[#f9f1e8] font-bold pl-6 focus:ring-teal-500/20 focus:bg-white transition-all border-0 shadow-none ring-offset-0 focus-visible:ring-0"
-                        />
-                    </div>
                 </div>
 
                 <Button 
