@@ -22,6 +22,8 @@ import {
   ChevronRight,
   Maximize,
   Minimize,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface DashboardViewProps {
@@ -32,24 +34,35 @@ interface DashboardViewProps {
     growthPercentage: number;
     savingsRate: number;
     biggestExpense: { amount: number; category: string };
+    cashBalance: number;
+    accountsBalances: any[];
   };
   recentTransactions: any[];
   categories: any[];
   cashFlow: any[];
   goalsCount: number;
+  projections: {
+    dailyAvgExpense: number;
+    projectedEndMonthBalance: number;
+    isPositive: boolean;
+  };
+  budgetAlerts: any[];
 }
 
 export function DashboardView({
   stats,
   recentTransactions,
   categories,
-  cashFlow,
-  goalsCount,
+  cashFlow = [],
+  goalsCount = 0,
+  projections = { dailyAvgExpense: 0, projectedEndMonthBalance: 0, isPositive: true },
+  budgetAlerts = []
 }: DashboardViewProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -176,10 +189,11 @@ export function DashboardView({
                     )}
                   </button>
                 </div>
-                <h2 className="text-4xl md:text-5xl font-black tracking-tighter tabular-nums drop-shadow-sm">
+                <h2 className="text-4xl md:text-5xl font-black tracking-tighter tabular-nums drop-shadow-sm flex items-baseline gap-2">
                   {isBalanceVisible
-                    ? `${stats.balance.toLocaleString()} ETB`
-                    : "•••• ETB"}
+                    ? stats.balance.toLocaleString()
+                    : "••••"}
+                  <span className="text-sm md:text-base opacity-60 font-medium">ETB</span>
                 </h2>
               </div>
 
@@ -193,10 +207,11 @@ export function DashboardView({
                       Income
                     </span>
                   </div>
-                  <p className="text-xl font-black tabular-nums">
+                  <p className="text-xl font-black tabular-nums flex items-baseline gap-1">
                     {isBalanceVisible
-                      ? `${stats.income.toLocaleString()} ETB`
-                      : "•••• ETB"}
+                      ? stats.income.toLocaleString()
+                      : "••••"}
+                    <span className="text-[10px] opacity-60 font-medium">ETB</span>
                   </p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 space-y-2 hover:bg-white/15 transition-colors border border-white/10">
@@ -208,16 +223,146 @@ export function DashboardView({
                       Expenses
                     </span>
                   </div>
-                  <p className="text-xl font-black tabular-nums text-rose-300">
+                  <p className="text-xl font-black tabular-nums text-rose-300 flex items-baseline gap-1">
                     {isBalanceVisible
-                      ? `${stats.expenses.toLocaleString()} ETB`
-                      : "•••• ETB"}
+                      ? stats.expenses.toLocaleString()
+                      : "••••"}
+                    <span className="text-[10px] opacity-60 font-medium">ETB</span>
                   </p>
                 </div>
               </div>
             </div>
           </div>
         </motion.div>
+
+        {/* Account Balances Section */}
+        <motion.div variants={itemVariants} className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              Accounts & Balances
+            </h3>
+            {stats.accountsBalances.length > 3 && (
+              <button
+                onClick={() => setShowAllAccounts(!showAllAccounts)}
+                className="text-teal-600 text-[9px] font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+              >
+                {showAllAccounts ? (
+                  <>
+                    Show Less <ChevronUp className="w-3 h-3" />
+                  </>
+                ) : (
+                  <>
+                    See All ({stats.accountsBalances.length + 1}){" "}
+                    <ChevronDown className="w-3 h-3" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div
+            className={`transition-all duration-500 ease-in-out ${
+              showAllAccounts
+                ? "grid grid-cols-2 gap-3"
+                : "flex gap-3 overflow-x-auto pb-2 scrollbar-none"
+            }`}
+          >
+            {/* Cash Account */}
+            <div
+              className={`glass p-4 rounded-2xl space-y-1 transition-all ${
+                showAllAccounts ? "w-full" : "flex-none w-36"
+              }`}
+            >
+              <div className="flex items-center gap-2 text-slate-400">
+                <Wallet className="w-3 h-3" />
+                <span className="text-[9px] font-bold uppercase tracking-widest">
+                  Cash
+                </span>
+              </div>
+              <p className="text-sm font-black tabular-nums">
+                {isBalanceVisible
+                  ? `${stats.cashBalance.toLocaleString()}`
+                  : "••••"}
+                <span className="text-[9px] ml-1 opacity-50">ETB</span>
+              </p>
+            </div>
+
+            {/* Bank Accounts */}
+            {(showAllAccounts
+              ? stats.accountsBalances
+              : stats.accountsBalances.slice(0, 3)
+            ).map((acc: any) => (
+              <div
+                key={acc.id}
+                className={`glass p-4 rounded-2xl space-y-1 transition-all ${
+                  showAllAccounts ? "w-full" : "flex-none w-36"
+                }`}
+              >
+                <div className="flex items-center gap-2 text-slate-400">
+                  <div className="p-0.5 bg-slate-100 rounded text-[10px]">
+                    {acc.type === "BANK" ? "🏦" : "📱"}
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest truncate">
+                    {acc.name}
+                  </span>
+                </div>
+                <p className="text-sm font-black tabular-nums">
+                  {isBalanceVisible
+                    ? `${acc.balance.toLocaleString()}`
+                    : "••••"}
+                  <span className="text-[9px] ml-1 opacity-50">ETB</span>
+                </p>
+              </div>
+            ))}
+
+            {/* Hint if hidden */}
+            {!showAllAccounts && stats.accountsBalances.length > 3 && (
+              <button
+                onClick={() => setShowAllAccounts(true)}
+                className="flex-none w-36 glass p-4 rounded-2xl flex flex-col items-center justify-center gap-1 group bg-slate-50/50 hover:bg-slate-50 transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600" />
+                </div>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                  +{stats.accountsBalances.length - 3} More
+                </span>
+              </button>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Budget Nudges (Advanced Feature) */}
+        {budgetAlerts?.length > 0 && (
+          <motion.div variants={itemVariants} className="space-y-3">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400">
+              Budget Alerts
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+              {budgetAlerts.map((alert: any) => (
+                <div 
+                  key={alert.category}
+                  className={`flex-none w-48 glass p-4 rounded-2xl border-l-4 ${alert.isPulse ? "border-rose-500 animate-pulse-soft" : "border-amber-400"} space-y-2`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">{alert.category}</span>
+                    <span className={`text-[10px] font-black ${alert.isPulse ? "text-rose-600" : "text-amber-600"}`}>{alert.percentage}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${alert.isPulse ? "bg-rose-500" : "bg-amber-500"}`} 
+                      style={{ width: `${Math.min(alert.percentage, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-400">
+                    {alert.spent.toLocaleString()} / {alert.limit.toLocaleString()} ETB
+                  </p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
 
         {/* Quick Action Row */}
         <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
@@ -263,7 +408,7 @@ export function DashboardView({
                 <h3 className="text-lg font-black tracking-tight text-slate-800">
                   Cash Flow
                 </h3>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">
+                <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">
                   Last 7 days activity
                 </p>
               </div>
@@ -342,17 +487,22 @@ export function DashboardView({
               })}
             </div>
 
-            <div className="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-3 group hover:bg-teal-50/30 transition-colors">
-              <div className="w-8 h-8 bg-white shadow-sm rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                <TrendingUp className="w-5 h-5 text-teal-600 opacity-20" />
+            <div className={`mt-4 p-3 ${projections.isPositive ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'} border rounded-xl flex items-center gap-3 group transition-colors`}>
+              <div className={`w-8 h-8 ${projections.isPositive ? 'bg-emerald-100' : 'bg-rose-100'} shadow-sm rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                <TrendingUp className={`w-5 h-5 ${projections.isPositive ? 'text-emerald-600' : 'text-rose-600'}`} />
               </div>
               <div>
-                <h4 className="text-[11px] font-black text-slate-800 tracking-tight leading-none">
-                  Projected balance by month-end
+                <h4 className="text-[10px] font-black text-slate-800 tracking-tight leading-none uppercase">
+                  Projected month-end balance
                 </h4>
-                <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wide">
-                  {stats.balance.toLocaleString()} ETB based on current spending
-                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className={`text-sm font-black tabular-nums ${projections.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {projections.projectedEndMonthBalance.toLocaleString()} <span className="text-[8px] opacity-60">ETB</span>
+                  </p>
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">
+                    Avg: {projections.dailyAvgExpense} ETB/day
+                  </span>
+                </div>
               </div>
             </div>
           </GlassCard>
@@ -385,10 +535,11 @@ export function DashboardView({
               <h3 className="text-slate-400 font-bold text-[10px]">
                 Biggest Expense
               </h3>
-              <p className="text-2xl font-black tabular-nums text-slate-900 group-hover:text-amber-600 transition-colors">
-                {stats.biggestExpense.amount.toLocaleString()} ETB
+              <p className="text-2xl font-black tabular-nums text-slate-900 group-hover:text-amber-600 transition-colors flex items-baseline gap-1">
+                {stats.biggestExpense.amount.toLocaleString()}
+                <span className="text-[10px] opacity-40 font-bold">ETB</span>
               </p>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
                 {stats.biggestExpense.category}
               </p>
             </div>
@@ -434,7 +585,7 @@ export function DashboardView({
                   >
                     {tx.type === "EXPENSE" ? "-" : "+"}{" "}
                     {tx.amount.toLocaleString()}
-                    <span className="text-[8px] ml-1 uppercase opacity-50 font-bold">
+                    <span className="text-[7px] ml-1 uppercase opacity-40 font-bold">
                       ETB
                     </span>
                   </p>
@@ -449,6 +600,7 @@ export function DashboardView({
             )}
           </div>
         </motion.div>
+
       </motion.div>
     </div>
   );

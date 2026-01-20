@@ -16,6 +16,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+import { getNotifications, deleteNotification, markAllAsRead } from "@/actions/notifications"
 
 interface Notification {
     id: string
@@ -33,11 +34,8 @@ export function NotificationPopover() {
 
     const fetchNotifications = async () => {
         try {
-            const res = await fetch("/api/notifications")
-            if (res.ok) {
-                const data = await res.json()
-                setNotifications(data)
-            }
+            const data = await getNotifications()
+            setNotifications(data as any)
         } catch (error) {
             console.error("Failed to fetch notifications:", error)
         } finally {
@@ -53,31 +51,21 @@ export function NotificationPopover() {
 
     const unreadCount = notifications.filter(n => !n.read).length
 
-    const markAllRead = async () => {
+    const handleMarkAllRead = async () => {
         try {
             // Optimistic update
             setNotifications([])
-            
-            await fetch("/api/notifications", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ readAll: true })
-            })
+            await markAllAsRead()
         } catch (error) {
             console.error("Failed to mark all read:", error)
         }
     }
 
-    const deleteNotification = async (id: string) => {
+    const handleDeleteNotification = async (id: string) => {
         try {
             // Optimistic update
             setNotifications(prev => prev.filter(n => n.id !== id))
-            
-            await fetch("/api/notifications", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id })
-            })
+            await deleteNotification(id)
         } catch (error) {
             console.error("Failed to delete notification:", error)
         }
@@ -111,7 +99,7 @@ export function NotificationPopover() {
                     </div>
                     {unreadCount > 0 && (
                         <button 
-                            onClick={markAllRead}
+                            onClick={handleMarkAllRead}
                             className="text-[9px] font-black text-teal-600 uppercase tracking-widest hover:underline flex items-center gap-1.5"
                         >
                             <CheckCheck className="w-3 h-3" />
@@ -144,7 +132,7 @@ export function NotificationPopover() {
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    deleteNotification(n.id);
+                                                    handleDeleteNotification(n.id);
                                                 }}
                                                 className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-slate-200 text-slate-300 hover:text-slate-500 transition-colors"
                                             >

@@ -20,7 +20,9 @@ export async function getDashboardData() {
   const [
     transactions,
     categories,
-    goals
+    goals,
+    bankAccounts,
+    budgets
   ] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId },
@@ -36,19 +38,51 @@ export async function getDashboardData() {
     prisma.goal.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' }
+    }),
+    prisma.bankAccount.findMany({
+      where: { userId }
+    }),
+    prisma.budget.findMany({
+      where: { userId },
+      include: { category: true }
     })
   ])
 
   // --- Stats Calculations ---
   const income = transactions
-    .filter(t => t.type === 'INCOME')
+    .filter(t => t.type === 'INCOME' && t.category?.name !== 'Transfer')
     .reduce((sum, t) => sum + t.amount, 0)
   
   const expenses = transactions
-    .filter(t => t.type === 'EXPENSE')
+    .filter(t => t.type === 'EXPENSE' && t.category?.name !== 'Transfer')
     .reduce((sum, t) => sum + t.amount, 0)
 
   const balance = income - expenses
+
+  // --- Per Account Balances ---
+  const accountsBalances = bankAccounts.map(acc => {
+    const accIncome = transactions
+      .filter(t => t.type === 'INCOME' && t.bankAccountId === acc.id)
+      .reduce((sum, t) => sum + t.amount, 0)
+    const accExpenses = transactions
+      .filter(t => t.type === 'EXPENSE' && t.bankAccountId === acc.id)
+      .reduce((sum, t) => sum + t.amount, 0)
+    
+    return {
+      id: acc.id,
+      name: acc.name,
+      type: acc.type,
+      balance: accIncome - accExpenses
+    }
+  })
+
+  const cashIncome = transactions
+    .filter(t => t.type === 'INCOME' && !t.bankAccountId)
+    .reduce((sum, t) => sum + t.amount, 0)
+  const cashExpenses = transactions
+    .filter(t => t.type === 'EXPENSE' && !t.bankAccountId)
+    .reduce((sum, t) => sum + t.amount, 0)
+  const cashBalance = cashIncome - cashExpenses
 
   // --- Growth & Savings Calculation ---
   const currentMonthExpenses = transactions
@@ -104,11 +138,11 @@ export async function getDashboardData() {
     )
 
     const dayIncome = dayTransactions
-      .filter(t => t.type === 'INCOME')
+      .filter(t => t.type === 'INCOME' && t.category?.name !== 'Transfer')
       .reduce((sum, t) => sum + t.amount, 0)
 
     const dayExpenses = dayTransactions
-      .filter(t => t.type === 'EXPENSE')
+      .filter(t => t.type === 'EXPENSE' && t.category?.name !== 'Transfer')
       .reduce((sum, t) => sum + t.amount, 0)
 
     return {
@@ -127,10 +161,29 @@ export async function getDashboardData() {
         growthPercentage: parseFloat(growthPercentage.toFixed(1)),
         savingsRate: Math.round(savingsRate),
         biggestExpense,
+        cashBalance,
+        accountsBalances
     },
     recentTransactions,
     categories,
     cashFlow,
-    goalsCount: goals.length
+    goalsCount: goals.length,
+    projections: {
+        dailyAvgExpense: parseFloat((expenses / (now.getDate() || 1)).toFixed(2)),
+        projectedEndMonthBalance: Math.round(balance - ((expenses / (now.getDate() || 1)) * (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))),
+        isPositive: (balance - ((expenses / (now.getDate() || 1)) * (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))) > 0
+    },
+    budgetAlerts: budgets.map(b => {
+        const spent = transactions
+            .filter(t => t.type === 'EXPENSE' && t.categoryId === b.categoryId && new Date(t.date) >= firstDayCurrentMonth)
+            .reduce((sum, t) => sum + t.amount, 0)
+        return {
+            category: b.category.name,
+            limit: b.amount,
+            spent,
+            percentage: Math.round((spent / b.amount) * 100),
+            isPulse: (spent / b.amount) > 0.85 // Pulse if over 85%
+        }
+    }).filter(a => a.percentage > 50) // Only show if more than half spent
   }
 }

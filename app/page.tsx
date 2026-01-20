@@ -1,6 +1,8 @@
 import { getDashboardData } from "@/actions/dashboard"
 import { DashboardView } from "@/components/dashboard/dashboard-view"
 
+export const dynamic = "force-dynamic"
+
 export default async function Dashboard() {
     const data = await getDashboardData()
 
@@ -11,6 +13,8 @@ export default async function Dashboard() {
             categories={data.categories}
             cashFlow={data.cashFlow}
             goalsCount={data.goalsCount}
+            projections={data.projections}
+            budgetAlerts={data.budgetAlerts}
         />
     )
 }

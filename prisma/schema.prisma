@@ -19,12 +19,16 @@ model User {
   accounts      Account[]
   sessions      Session[]
 
-  categories    Category[]
-  transactions  Transaction[]
-  budgets       Budget[]
-  goals         Goal[]
-  notifications Notification[]
-  bankAccounts  BankAccount[]
+  categories        Category[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  goals             Goal[]
+  notifications     Notification[]
+  bankAccounts      BankAccount[]
+  pushSubscriptions PushSubscription[]
+
+  pushEnabled            Boolean @default(false)
+  budgetRemindersEnabled Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -160,4 +164,17 @@ model Notification {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+model PushSubscription {
+  id       String @id @default(cuid())
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

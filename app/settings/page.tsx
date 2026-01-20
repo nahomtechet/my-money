@@ -27,7 +27,9 @@ export default function SettingsPage() {
     const [saveSuccess, setSaveSuccess] = useState(false)
     const [formData, setFormData] = useState({
         name: "",
-        email: ""
+        email: "",
+        pushEnabled: false,
+        budgetRemindersEnabled: true
     })
 
     useEffect(() => {
@@ -38,7 +40,9 @@ export default function SettingsPage() {
                     const data = await res.json()
                     setFormData({
                         name: data.name || "",
-                        email: data.email || ""
+                        email: data.email || "",
+                        pushEnabled: data.pushEnabled || false,
+                        budgetRemindersEnabled: data.budgetRemindersEnabled ?? true
                     })
                 }
             } catch (error) {
@@ -50,14 +54,15 @@ export default function SettingsPage() {
         fetchProfile()
     }, [])
 
-    const handleSave = async () => {
+    const handleSave = async (updatedData?: any) => {
         setIsSaving(true)
         setSaveSuccess(false)
+        const dataToSave = updatedData || formData
         try {
             const res = await fetch("/api/user/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSave)
             })
             if (res.ok) {
                 setSaveSuccess(true)
@@ -68,6 +73,31 @@ export default function SettingsPage() {
         } finally {
             setIsSaving(false)
         }
+    }
+
+    const togglePush = async () => {
+        const newValue = !formData.pushEnabled
+        setFormData(prev => ({ ...prev, pushEnabled: newValue }))
+        
+        if (newValue) {
+            try {
+                const { registerPush } = await import("@/lib/push-registration")
+                await registerPush()
+            } catch (error) {
+                console.error("Push registration failed:", error)
+                setFormData(prev => ({ ...prev, pushEnabled: false }))
+                alert("Failed to enable push notifications. Please check browser permissions.")
+            }
+        }
+        
+        // Save immediately when toggled
+        handleSave({ ...formData, pushEnabled: newValue })
+    }
+
+    const toggleBudgetReminders = () => {
+        const newValue = !formData.budgetRemindersEnabled
+        setFormData(prev => ({ ...prev, budgetRemindersEnabled: newValue }))
+        handleSave({ ...formData, budgetRemindersEnabled: newValue })
     }
 
     const containerVariants = {
@@ -84,21 +114,23 @@ export default function SettingsPage() {
     }
 
     const ETHIOPIAN_BANKS = [
-        "Commercial Bank of Ethiopia (CBE)",
-        "Bank of Abyssinia",
-        "Awash Bank",
-        "Dashen Bank",
-        "Wegagen Bank",
-        "Nib International Bank",
-        "United Bank (Hibret)",
-        "Cooperative Bank of Oromia",
-        "Zemen Bank",
-        "Berhan International Bank",
-        "Bunna International Bank",
-        "Enat Bank",
         "Abay Bank",
         "Addis International Bank",
-        "Lion International Bank"
+        "Awash International Bank",
+        "Bank of Abyssinia",
+        "Berhan International Bank", 
+        "Bunna International Bank",
+        "Commercial Bank of Ethiopia (CBE)",
+        "Cooperative Bank of Oromia",
+        "Dashen Bank",
+        "Debub Global Bank",
+        "Enat Bank",
+        "Hibret Bank", 
+        "Lion International Bank", 
+        "Nib International Bank",
+        "Oromia Bank", 
+        "Wegagen Bank", 
+        "Zemen Bank"
     ]
 
     const [accounts, setAccounts] = useState<any[]>([])
@@ -399,28 +431,49 @@ export default function SettingsPage() {
                         className="space-y-3"
                     >
                         <h4 className="px-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Preferences</h4>
-                        <div className="space-y-2">
-                            {[
-                                { title: "Email Notifications", desc: "Receive summary of your weekly spending", icon: Globe },
-                                { title: "Push Alerts", desc: "Real-time alerts for large transactions", icon: Bell },
-                                { title: "Budget Reminders", desc: "Nudges when you approach your limits", icon: Shield }
-                            ].map((item, i) => (
-                                <section key={i} className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-slate-200 transition-colors text-left">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                                            <item.icon className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-black text-slate-800 tracking-tight">{item.title}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{item.desc}</p>
-                                        </div>
-                                    </div>
-                                    <div className="w-10 h-6 bg-teal-500 rounded-full relative p-1 cursor-pointer">
-                                        <div className="w-4 h-4 bg-white rounded-full ml-auto shadow-sm" />
-                                    </div>
-                                </section>
-                            ))}
-                        </div>
+                    <div className="space-y-2">
+                        <section className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-slate-200 transition-colors text-left">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
+                                    <Bell className="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black text-slate-800 tracking-tight">Push Alerts</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Real-time alerts for large transactions</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={togglePush}
+                                className={`w-10 h-6 rounded-full relative p-1 transition-colors ${formData.pushEnabled ? "bg-teal-500" : "bg-slate-200"}`}
+                            >
+                                <motion.div 
+                                    animate={{ x: formData.pushEnabled ? 16 : 0 }}
+                                    className="w-4 h-4 bg-white rounded-full shadow-sm" 
+                                />
+                            </button>
+                        </section>
+
+                        <section className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-slate-200 transition-colors text-left">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
+                                    <Shield className="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black text-slate-800 tracking-tight">Budget Reminders</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Nudges when you approach your limits</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={toggleBudgetReminders}
+                                className={`w-10 h-6 rounded-full relative p-1 transition-colors ${formData.budgetRemindersEnabled ? "bg-teal-500" : "bg-slate-200"}`}
+                            >
+                                <motion.div 
+                                    animate={{ x: formData.budgetRemindersEnabled ? 16 : 0 }}
+                                    className="w-4 h-4 bg-white rounded-full shadow-sm" 
+                                />
+                            </button>
+                        </section>
+                    </div>
                     </motion.div>
                 )}
 

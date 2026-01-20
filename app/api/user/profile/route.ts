@@ -7,7 +7,7 @@ export async function PATCH(req: Request) {
         const session = await auth()
         if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 })
 
-        const { name, email } = await req.json()
+        const { name, email, pushEnabled, budgetRemindersEnabled } = await req.json()
 
         if (!name || !email) {
             return new NextResponse("Name and Email are required", { status: 400 })
@@ -15,7 +15,12 @@ export async function PATCH(req: Request) {
 
         const updatedUser = await prisma.user.update({
             where: { id: session.user.id },
-            data: { name, email }
+            data: { 
+                name, 
+                email,
+                pushEnabled: pushEnabled !== undefined ? pushEnabled : undefined,
+                budgetRemindersEnabled: budgetRemindersEnabled !== undefined ? budgetRemindersEnabled : undefined
+            }
         })
 
         // Create notification
@@ -30,7 +35,12 @@ export async function PATCH(req: Request) {
 
         return NextResponse.json({ 
             success: true, 
-            user: { name: updatedUser.name, email: updatedUser.email } 
+            user: { 
+                name: updatedUser.name, 
+                email: updatedUser.email,
+                pushEnabled: updatedUser.pushEnabled,
+                budgetRemindersEnabled: updatedUser.budgetRemindersEnabled
+            } 
         })
     } catch (error) {
         console.error("Profile update failed:", error)
@@ -44,7 +54,12 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { name: true, email: true }
+        select: { 
+            name: true, 
+            email: true,
+            pushEnabled: true,
+            budgetRemindersEnabled: true
+        }
     })
 
     return NextResponse.json(user)
