@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { addWeeks, addMonths, addDays } from "date-fns"
+import { createNotification } from "./notifications"
 
 const equbSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -54,10 +55,12 @@ export async function createEqub(data: z.infer<typeof equbSchema>) {
     const validated = equbSchema.parse(data)
 
     const equb = await prisma.$transaction(async (tx) => {
+      if (!session?.user?.id) throw new Error("Unauthorized");
+      
       const newEqub = await tx.equb.create({
         data: {
           ...validated,
-          userId: session.user.id!,
+          userId: session.user.id,
         }
       })
 
@@ -156,14 +159,21 @@ export async function getBankAccounts() {
 export async function markContributionPaid(contributionId: string, bankAccountId?: string) {
   const session = await auth()
   if (!session?.user?.id) return { error: "Unauthorized" }
+  return internalActionMarkContributionPaid(contributionId, session.user.id, bankAccountId)
+}
 
+/**
+ * Internal version that doesn't rely on auth() session, 
+ * useful for background tasks or webhooks where we already identified the user
+ */
+export async function internalActionMarkContributionPaid(contributionId: string, userId: string, bankAccountId?: string) {
   try {
     const contribution = await prisma.equbContribution.findUnique({
       where: { id: contributionId },
       include: { equb: true }
     })
 
-    if (!contribution || contribution.equb.userId !== session.user.id) {
+    if (!contribution || contribution.equb.userId !== userId) {
       return { error: "Contribution not found" }
     }
 
@@ -173,13 +183,13 @@ export async function markContributionPaid(contributionId: string, bankAccountId
 
     // Balance check
     if (bankAccountId) {
-      const balance = await getAccountBalance(bankAccountId, session.user.id)
+      const balance = await getAccountBalance(bankAccountId, userId)
       if (balance < contribution.amount) {
         return { error: `Insufficient balance! Your current balance is ${balance.toLocaleString()} ETB.` }
       }
     }
 
-    const category = await getOrCreateCategory("Equb Contribution", "EXPENSE", session.user.id)
+    const category = await getOrCreateCategory("Equb Contribution", "EXPENSE", userId)
 
     await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
@@ -188,7 +198,7 @@ export async function markContributionPaid(contributionId: string, bankAccountId
           description: `Equb Contribution: ${contribution.equb.name} (Cycle ${contribution.cycleNumber})`,
           type: "EXPENSE",
           date: new Date(),
-          userId: session.user.id!,
+          userId: userId,
           categoryId: category.id,
           bankAccountId: bankAccountId || null
         }
@@ -203,13 +213,11 @@ export async function markContributionPaid(contributionId: string, bankAccountId
       })
 
       // Add Notification
-      await tx.notification.create({
-        data: {
-          userId: session.user.id!,
-          title: "Equb Payment Recorded 💸",
-          message: `You paid ${contribution.amount.toLocaleString()} ETB for your ${contribution.equb.name} (Cycle ${contribution.cycleNumber}).`,
-          type: "SUCCESS"
-        }
+      await createNotification({
+        userId: userId,
+        title: "Equb Payment Recorded 💸",
+        message: `You paid ${contribution.amount.toLocaleString()} ETB for your ${contribution.equb.name} (Cycle ${contribution.cycleNumber}).`,
+        type: "SUCCESS"
       })
     })
 
@@ -244,13 +252,15 @@ export async function receiveEqubPayout(payoutId: string, bankAccountId?: string
     const category = await getOrCreateCategory("Equb Payout", "INCOME", session.user.id)
 
     await prisma.$transaction(async (tx) => {
+      if (!session?.user?.id) throw new Error("Unauthorized");
+      
       const transaction = await tx.transaction.create({
         data: {
           amount: payout.amount,
           description: `Equb Payout: ${payout.equb.name}`,
           type: "INCOME",
           date: new Date(),
-          userId: session.user.id!,
+          userId: session.user.id,
           categoryId: category.id,
           bankAccountId: bankAccountId || null
         }
@@ -265,13 +275,11 @@ export async function receiveEqubPayout(payoutId: string, bankAccountId?: string
       })
 
       // Add Notification
-      await tx.notification.create({
-        data: {
-          userId: session.user.id!,
-          title: "Equb Payout Received! 💰",
-          message: `Hooray! You received a lump sum of ${payout.amount.toLocaleString()} ETB from ${payout.equb.name}.`,
-          type: "SUCCESS"
-        }
+      await createNotification({
+        userId: session.user.id,
+        title: "Equb Payout Received! 💰",
+        message: `Hooray! You received a lump sum of ${payout.amount.toLocaleString()} ETB from ${payout.equb.name}.`,
+        type: "SUCCESS"
       })
     })
 

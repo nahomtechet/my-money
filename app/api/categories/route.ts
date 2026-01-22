@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import prisma from "@/lib/prisma"
 import { z } from "zod"
+import { createNotification } from "@/actions/notifications"
 
 const categorySchema = z.object({
   name: z.string().min(1),
@@ -68,13 +69,11 @@ export async function POST(request: Request) {
     })
 
     // Create notification
-    await prisma.notification.create({
-        data: {
-            userId: user.id,
-            title: "New Category Added 📁",
-            message: `Created "${parsed.data.name}" as a new ${parsed.data.type.toLowerCase()} category.`,
-            type: "INFO"
-        }
+    await createNotification({
+        userId: user.id,
+        title: "New Category Added 📁",
+        message: `Created "${parsed.data.name}" as a new ${parsed.data.type.toLowerCase()} category.`,
+        type: "INFO"
     })
 
     return NextResponse.json(category, { status: 201 })

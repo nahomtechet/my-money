@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import prisma from "@/lib/prisma"
 import { z } from "zod"
+import { createNotification } from "@/actions/notifications"
 
 const accountSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -55,13 +56,11 @@ export async function POST(request: Request) {
     })
 
     // Create notification
-    await prisma.notification.create({
-        data: {
-            userId: session.user.id,
-            title: "New Account Linked 🏦",
-            message: `Successfully linked ${parsed.data.name} (${parsed.data.type === "BANK" ? "Bank" : "Mobile Money"}).`,
-            type: "SUCCESS"
-        }
+    await createNotification({
+        userId: session.user.id,
+        title: "New Account Linked 🏦",
+        message: `Successfully linked ${parsed.data.name} (${parsed.data.type === "BANK" ? "Bank" : "Mobile Money"}).`,
+        type: "SUCCESS"
     })
 
     return NextResponse.json(account, { status: 201 })

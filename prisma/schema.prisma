@@ -171,6 +171,8 @@ model Notification {
   actionId   String? // e.g. contributionId
   actionType String? // e.g. "MARK_EQUB_PAID"
 
+  telegramMessageId String? // Associated Telegram message ID
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 

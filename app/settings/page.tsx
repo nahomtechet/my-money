@@ -19,6 +19,7 @@ import {
   Wallet,
   Send,
   LogOut,
+  Copy,
 } from "lucide-react";
 import Link from "next/link"
 import { signOut } from "next-auth/react";
@@ -37,6 +38,13 @@ export default function SettingsPage() {
     telegramVerificationCode: "",
     telegramId: "",
   });
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -62,6 +70,36 @@ export default function SettingsPage() {
     };
     fetchProfile();
   }, []);
+
+  // Poll for telegram status updates when user has code but not linked yet
+  useEffect(() => {
+    if (!formData.telegramVerificationCode || formData.telegramId) {
+      return; // Don't poll if no code or already linked
+    }
+
+    const pollTelegramStatus = async () => {
+      try {
+        const res = await fetch("/api/telegram/status");
+        if (res.ok) {
+          const data = await res.json();
+          // If we got a telegramId when we didn't have one before, update!
+          if (data.telegramId && !formData.telegramId) {
+            setFormData((prev) => ({
+              ...prev,
+              telegramId: data.telegramId,
+              telegramVerificationCode: data.telegramVerificationCode,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to poll telegram status:", error);
+      }
+    };
+
+    // Poll every 3 seconds
+    const interval = setInterval(pollTelegramStatus, 3000);
+    return () => clearInterval(interval);
+  }, [formData.telegramVerificationCode, formData.telegramId]);
 
   const handleSave = async (updatedData?: any) => {
     setIsSaving(true);
@@ -607,6 +645,21 @@ export default function SettingsPage() {
                               <div className="px-4 py-2 bg-white border-2 border-dashed border-amber-200 rounded-xl text-lg font-black tracking-[0.3em] text-amber-600 shadow-sm">
                                 {formData.telegramVerificationCode || "------"}
                               </div>
+                              <button
+                                onClick={() => handleCopyCode(formData.telegramVerificationCode)}
+                                className={`p-2.5 rounded-xl border transition-all ${
+                                  copied 
+                                    ? "bg-emerald-50 border-emerald-100 text-emerald-500" 
+                                    : "bg-white border-slate-100 text-slate-400 hover:text-teal-600 hover:border-teal-100 shadow-sm"
+                                }`}
+                                title="Copy Verification Code"
+                              >
+                                {copied ? (
+                                  <Check className="w-4 h-4" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </button>
                             </div>
                           </div>
                         </div>

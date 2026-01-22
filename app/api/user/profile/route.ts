@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma"
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
+import { createNotification } from "@/actions/notifications"
 
 export async function PATCH(req: Request) {
     try {
@@ -40,13 +41,11 @@ export async function PATCH(req: Request) {
         })
 
         // Create notification
-        await prisma.notification.create({
-            data: {
-                userId: session.user.id,
-                title: "Profile Updated 👤",
-                message: "Your profile information has been successfully updated.",
-                type: "SUCCESS"
-            }
+        await createNotification({
+            userId: session.user.id,
+            title: "Profile Updated 👤",
+            message: "Your profile information has been successfully updated.",
+            type: "SUCCESS"
         })
 
         return NextResponse.json({ 

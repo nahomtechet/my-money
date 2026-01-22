@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import prisma from "@/lib/prisma"
 import { z } from "zod"
+import { createNotification } from "@/actions/notifications"
 
 const transactionSchema = z.object({
   amount: z.coerce.number().min(0.01),
@@ -79,13 +80,11 @@ export async function POST(request: Request) {
     })
 
     // Create notification
-    await prisma.notification.create({
-        data: {
-            userId: user.id,
-            title: parsed.data.type === "INCOME" ? "Income Recorded 💰" : "Expense Recorded 💸",
-            message: `${parsed.data.type === "INCOME" ? "Added" : "Spent"} ${parsed.data.amount.toLocaleString()} ETB for ${parsed.data.description || "a transaction"}.`,
-            type: "SUCCESS"
-        }
+    await createNotification({
+        userId: user.id,
+        title: parsed.data.type === "INCOME" ? "Income Recorded 💰" : "Expense Recorded 💸",
+        message: `${parsed.data.type === "INCOME" ? "Added" : "Spent"} ${parsed.data.amount.toLocaleString()} ETB for ${parsed.data.description || "a transaction"}.`,
+        type: "SUCCESS"
     })
 
     return NextResponse.json(transaction, { status: 201 })
