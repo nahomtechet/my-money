@@ -129,33 +129,71 @@ export async function createTransaction(data: any) {
             })
         }
 
-        // Perform two transactions in a batch
-        await prisma.$transaction([
-            // 1. Source Transaction (Expense)
-            prisma.transaction.create({
+        // Fetch account names for better descriptions
+        let fromAccountName = "Cash"
+        let toAccountName = "Cash"
+
+        if (bankAccountId) {
+            const fromAcc = await prisma.bankAccount.findUnique({ where: { id: bankAccountId } })
+            if (fromAcc) fromAccountName = fromAcc.name
+        }
+
+        if (toBankAccountId) {
+            const toAcc = await prisma.bankAccount.findUnique({ where: { id: toBankAccountId } })
+            if (toAcc) toAccountName = toAcc.name
+        }
+
+        // --- Simple Flow Logic ---
+        // If one side is Cash (null), we do a SINGLE ENTRY to keep balance update simple for the user.
+        // If both are Banks, we keep DOUBLE ENTRY for accounting integrity.
+        
+        if (!bankAccountId || !toBankAccountId) {
+            // SINGLE ENTRY (Simple Flow)
+            const targetType = toBankAccountId ? "INCOME" : "EXPENSE"
+            const targetBankId = toBankAccountId || bankAccountId
+            const actionLabel = toBankAccountId ? "Deposit to" : "Withdrawal from"
+            const finalDescription = description || `${actionLabel} ${toBankAccountId ? toAccountName : fromAccountName}`
+
+            await prisma.transaction.create({
                 data: {
                     amount,
-                    description: description || `Transfer to ${toBankAccountId ? 'Bank' : 'Cash'}`,
+                    description: finalDescription,
                     categoryId: transferCategory.id,
-                    type: "EXPENSE",
+                    type: targetType,
                     date: date || new Date(),
                     userId: user.id,
-                    bankAccountId: bankAccountId || null
-                }
-            }),
-            // 2. Destination Transaction (Income)
-            prisma.transaction.create({
-                data: {
-                    amount,
-                    description: description || `Transfer from ${bankAccountId ? 'Bank' : 'Cash'}`,
-                    categoryId: transferCategory.id,
-                    type: "INCOME",
-                    date: date || new Date(),
-                    userId: user.id,
-                    bankAccountId: toBankAccountId || null
+                    bankAccountId: targetBankId || null
                 }
             })
-        ])
+        } else {
+            // DOUBLE ENTRY (Bank to Bank)
+            await prisma.$transaction([
+                // 1. Source Transaction (Expense)
+                prisma.transaction.create({
+                    data: {
+                        amount,
+                        description: description || `Transfer to ${toAccountName}`,
+                        categoryId: transferCategory.id,
+                        type: "EXPENSE",
+                        date: date || new Date(),
+                        userId: user.id,
+                        bankAccountId: bankAccountId
+                    }
+                }),
+                // 2. Destination Transaction (Income)
+                prisma.transaction.create({
+                    data: {
+                        amount,
+                        description: description || `Transfer from ${fromAccountName}`,
+                        categoryId: transferCategory.id,
+                        type: "INCOME",
+                        date: date || new Date(),
+                        userId: user.id,
+                        bankAccountId: toBankAccountId
+                    }
+                })
+            ])
+        }
 
         // Create notification
         await prisma.notification.create({

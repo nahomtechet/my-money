@@ -16,7 +16,8 @@ import {
     Check,
     CreditCard,
     Building2,
-    Wallet
+    Wallet,
+    Send
 } from "lucide-react"
 import Link from "next/link"
 
@@ -29,7 +30,10 @@ export default function SettingsPage() {
         name: "",
         email: "",
         pushEnabled: false,
-        budgetRemindersEnabled: true
+        budgetRemindersEnabled: true,
+        telegramUsername: "",
+        telegramVerificationCode: "",
+        telegramId: ""
     })
 
     useEffect(() => {
@@ -42,7 +46,10 @@ export default function SettingsPage() {
                         name: data.name || "",
                         email: data.email || "",
                         pushEnabled: data.pushEnabled || false,
-                        budgetRemindersEnabled: data.budgetRemindersEnabled ?? true
+                        budgetRemindersEnabled: data.budgetRemindersEnabled ?? true,
+                        telegramUsername: data.telegramUsername || "",
+                        telegramVerificationCode: data.telegramVerificationCode || "",
+                        telegramId: data.telegramId || ""
                     })
                 }
             } catch (error) {
@@ -65,6 +72,13 @@ export default function SettingsPage() {
                 body: JSON.stringify(dataToSave)
             })
             if (res.ok) {
+                const data = await res.json()
+                if (data.user) {
+                    setFormData(prev => ({
+                        ...prev,
+                        ...data.user
+                    }))
+                }
                 setSaveSuccess(true)
                 setTimeout(() => setSaveSuccess(false), 3000)
             }
@@ -417,8 +431,68 @@ export default function SettingsPage() {
                                         placeholder="email@example.com"
                                     />
                                 </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="px-1 text-[9px] font-black text-slate-500 uppercase tracking-widest">Telegram Username</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">@</span>
+                                        <input 
+                                            type="text"
+                                            value={formData.telegramUsername}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, telegramUsername: e.target.value.replace("@", "") }))}
+                                            className="w-full h-12 pl-8 pr-4 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all placeholder:text-slate-300"
+                                            placeholder="username"
+                                        />
+                                    </div>
+                                    <p className="px-1 text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Used for Equb payment reminders</p>
+                                </div>
                             </div>
                         </div>
+
+                        {formData.telegramUsername && (
+                            <div className="space-y-3 pt-2">
+                                <h4 className="px-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Telegram Verification</h4>
+                                <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-3xl space-y-3">
+                                    {formData.telegramId ? (
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                                <Check className="w-4 h-4 text-emerald-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">Verified & Connected</p>
+                                                <p className="text-[9px] font-bold text-slate-400 uppercase">Your account is linked to Telegram</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-[10px] font-black text-amber-600">
+                                                    1
+                                                </div>
+                                                <p className="text-[10px] font-bold text-slate-600 leading-normal">
+                                                    Open <Link href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "EqubReminderBot"}`} target="_blank" className="text-[#0088cc] hover:underline font-black">@{process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "EqubReminderBot"}</Link> on Telegram.
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-[10px] font-black text-amber-600">
+                                                    2
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-[10px] font-bold text-slate-600 leading-normal">
+                                                        Send this 6-digit code to the bot:
+                                                    </p>
+                                                    <div className="mt-2 flex items-center gap-2">
+                                                        <div className="px-4 py-2 bg-white border-2 border-dashed border-amber-200 rounded-xl text-lg font-black tracking-[0.3em] text-amber-600 shadow-sm">
+                                                            {formData.telegramVerificationCode || "------"}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
 
@@ -455,23 +529,23 @@ export default function SettingsPage() {
 
                         <section className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-slate-200 transition-colors text-left">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                                    <Shield className="w-5 h-5 text-slate-400" />
+                                <div className="w-10 h-10 bg-[#0088cc]/10 rounded-xl flex items-center justify-center">
+                                    <Send className="w-5 h-5 text-[#0088cc]" />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-black text-slate-800 tracking-tight">Budget Reminders</p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Nudges when you approach your limits</p>
+                                    <p className="text-xs font-black text-slate-800 tracking-tight">Telegram Setup</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                        {formData.telegramUsername ? `Linked to @${formData.telegramUsername}` : "Not linked yet"}
+                                    </p>
                                 </div>
                             </div>
-                            <button 
-                                onClick={toggleBudgetReminders}
-                                className={`w-10 h-6 rounded-full relative p-1 transition-colors ${formData.budgetRemindersEnabled ? "bg-teal-500" : "bg-slate-200"}`}
+                            <Link 
+                                href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "EqubReminderBot"}?start=${formData.telegramUsername}`}
+                                target="_blank"
+                                className="text-[9px] font-black text-[#0088cc] uppercase tracking-widest hover:underline"
                             >
-                                <motion.div 
-                                    animate={{ x: formData.budgetRemindersEnabled ? 16 : 0 }}
-                                    className="w-4 h-4 bg-white rounded-full shadow-sm" 
-                                />
-                            </button>
+                                Link Bot
+                            </Link>
                         </section>
                     </div>
                     </motion.div>

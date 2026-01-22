@@ -24,6 +24,7 @@ import {
   Minimize,
   ChevronDown,
   ChevronUp,
+  Coins,
 } from "lucide-react";
 
 interface DashboardViewProps {
@@ -63,6 +64,10 @@ export function DashboardView({
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
+
+  const activeBankAccounts = stats.accountsBalances.filter(acc => acc.balance > 0);
+  const isCashActive = stats.cashBalance > 0;
+  const totalVisible = (isCashActive ? 1 : 0) + activeBankAccounts.length;
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -241,10 +246,10 @@ export function DashboardView({
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
               Accounts & Balances
             </h3>
-            {stats.accountsBalances.length > 3 && (
+            {totalVisible > 3 && (
               <button
                 onClick={() => setShowAllAccounts(!showAllAccounts)}
-                className="text-teal-600 text-[9px] font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+                className="flex items-center gap-1.5 px-3 py-1.5 glass rounded-xl text-[10px] font-black uppercase tracking-widest text-teal-600 hover:bg-teal-50 transition-colors"
               >
                 {showAllAccounts ? (
                   <>
@@ -252,7 +257,7 @@ export function DashboardView({
                   </>
                 ) : (
                   <>
-                    See All ({stats.accountsBalances.length + 1}){" "}
+                    See All ({totalVisible}){" "}
                     <ChevronDown className="w-3 h-3" />
                   </>
                 )}
@@ -268,29 +273,31 @@ export function DashboardView({
             }`}
           >
             {/* Cash Account */}
-            <div
-              className={`glass p-4 rounded-2xl space-y-1 transition-all ${
-                showAllAccounts ? "w-full" : "flex-none w-36"
-              }`}
-            >
-              <div className="flex items-center gap-2 text-slate-400">
-                <Wallet className="w-3 h-3" />
-                <span className="text-[9px] font-bold uppercase tracking-widest">
-                  Cash
-                </span>
+            {isCashActive && (
+              <div
+                className={`glass p-4 rounded-2xl space-y-1 transition-all ${
+                  showAllAccounts ? "w-full" : "flex-none w-36"
+                }`}
+              >
+                <div className="flex items-center gap-2 text-slate-400">
+                  <Wallet className="w-3 h-3" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest">
+                    Cash
+                  </span>
+                </div>
+                <p className="text-sm font-black tabular-nums">
+                  {isBalanceVisible
+                    ? `${stats.cashBalance.toLocaleString()}`
+                    : "••••"}
+                  <span className="text-[9px] ml-1 opacity-50">ETB</span>
+                </p>
               </div>
-              <p className="text-sm font-black tabular-nums">
-                {isBalanceVisible
-                  ? `${stats.cashBalance.toLocaleString()}`
-                  : "••••"}
-                <span className="text-[9px] ml-1 opacity-50">ETB</span>
-              </p>
-            </div>
+            )}
 
             {/* Bank Accounts */}
             {(showAllAccounts
-              ? stats.accountsBalances
-              : stats.accountsBalances.slice(0, 3)
+              ? activeBankAccounts
+              : activeBankAccounts.slice(0, isCashActive ? 2 : 3)
             ).map((acc: any) => (
               <div
                 key={acc.id}
@@ -316,7 +323,7 @@ export function DashboardView({
             ))}
 
             {/* Hint if hidden */}
-            {!showAllAccounts && stats.accountsBalances.length > 3 && (
+            {!showAllAccounts && totalVisible > 3 && (
               <button
                 onClick={() => setShowAllAccounts(true)}
                 className="flex-none w-36 glass p-4 rounded-2xl flex flex-col items-center justify-center gap-1 group bg-slate-50/50 hover:bg-slate-50 transition-colors"
@@ -325,7 +332,7 @@ export function DashboardView({
                   <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600" />
                 </div>
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                  +{stats.accountsBalances.length - 3} More
+                  +{totalVisible - 3} More
                 </span>
               </button>
             )}
@@ -387,7 +394,7 @@ export function DashboardView({
 
           <Link
             href="/goals"
-            className="glass flex flex-col items-center justify-center gap-2 p-4 rounded-[1.5rem] hover:scale-[1.03] transition-all group col-span-2"
+            className="glass flex flex-col items-center justify-center gap-2 p-4 rounded-[1.5rem] hover:scale-[1.03] transition-all group"
           >
             <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-orange-100/50 text-orange-600 group-hover:bg-orange-100 transition-colors">
               <Target className="w-5 h-5" />
@@ -396,6 +403,20 @@ export function DashboardView({
               {goalsCount > 0
                 ? `${goalsCount} Active Goals`
                 : "Set Financial Goals"}
+            </span>
+          </Link>
+
+          <Link
+            href="/equb"
+            className="glass flex flex-col items-center justify-center gap-2 p-4 rounded-[1.5rem] hover:scale-[1.03] transition-all group"
+          >
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-teal-100/50 text-teal-600 group-hover:bg-teal-100 transition-colors">
+              <Coins className="w-5 h-5" />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-widest leading-tight text-center text-slate-600">
+              Personal
+              <br />
+              Equbs
             </span>
           </Link>
         </motion.div>
@@ -573,17 +594,27 @@ export function DashboardView({
                     </div>
                     <div>
                       <p className="text-xs font-black text-slate-800 tracking-tight">
-                        {tx.description}
+                        {tx.category?.name === "Transfer" 
+                          ? tx.description 
+                          : tx.description}
                       </p>
                       <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                        {tx.category?.name}
+                        {tx.category?.name === "Transfer" 
+                          ? (tx.type === "INCOME" ? "Deposit" : "Withdrawal")
+                          : tx.category?.name}
                       </p>
                     </div>
                   </div>
                   <p
-                    className={`font-black tracking-tight tabular-nums text-sm ${tx.type === "EXPENSE" ? "text-rose-600" : "text-emerald-600"}`}
+                    className={`font-black tracking-tight tabular-nums text-sm ${
+                      tx.category?.name === "Transfer" 
+                        ? (tx.type === "EXPENSE" ? "text-amber-600" : "text-indigo-600")
+                        : tx.type === "EXPENSE" 
+                          ? "text-rose-600" 
+                          : "text-emerald-600"
+                    }`}
                   >
-                    {tx.type === "EXPENSE" ? "-" : "+"}{" "}
+                    {tx.category?.name === "Transfer" ? "" : (tx.type === "EXPENSE" ? "-" : "+")}{" "}
                     {tx.amount.toLocaleString()}
                     <span className="text-[7px] ml-1 uppercase opacity-40 font-bold">
                       ETB

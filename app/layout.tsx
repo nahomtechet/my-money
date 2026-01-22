@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { NextAuthProvider } from "@/components/providers/session-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { TelegramPrompt } from "@/components/notifications/telegram-prompt";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -27,6 +28,7 @@ export default function RootLayout({
         <NextAuthProvider>
           {children}
           <Toaster />
+          <TelegramPrompt />
         </NextAuthProvider>
       </body>
     </html>

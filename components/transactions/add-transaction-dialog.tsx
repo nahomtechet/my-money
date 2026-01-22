@@ -32,7 +32,9 @@ import {
     Repeat,
     Building2,
     Wallet,
-    ArrowRightLeft
+    ArrowRightLeft,
+    Download,
+    Upload
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
@@ -73,6 +75,7 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(false)
   const [type, setType] = useState<"EXPENSE" | "INCOME" | "TRANSFER">("EXPENSE")
+  const [transferSubtype, setTransferSubtype] = useState<"DEPOSIT" | "WITHDRAW" | null>(null)
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null)
   const [customCategoryName, setCustomCategoryName] = useState("")
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -104,14 +107,12 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
 
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    // ... existing logic ...
+    e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const data: any = Object.fromEntries(formData)
     
     // Default description based on category or type
-    if (type === "TRANSFER") {
-        data.description = "Transfer between accounts"
-    } else {
+    if (type !== "TRANSFER") {
         data.description = selectedCategoryName === "Other" ? customCategoryName : selectedCategoryName
     }
     const matchedCategory = categories.find(c => c.name === selectedCategoryName && c.type === type)
@@ -176,51 +177,72 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
             </div>
 
             {/* Type Toggle */}
-            <div className="bg-[#fdf8f4] p-1.5 rounded-3xl flex items-center gap-1.5 border border-[#f9f1e8]">
+            <div className="bg-[#fdf8f4] p-1.5 rounded-3xl grid grid-cols-2 md:grid-cols-4 gap-1.5 border border-[#f9f1e8]">
                 <button 
                     type="button"
                     onClick={() => {
                         setType("EXPENSE")
+                        setTransferSubtype(null)
                         setSelectedCategoryName(null)
                     }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 md:py-4 rounded-[1.5rem] font-black text-[10px] md:text-xs uppercase tracking-widest transition-all ${
+                    className={`flex items-center justify-center gap-2 py-3 rounded-[1.5rem] font-black text-[9px] uppercase tracking-widest transition-all ${
                         type === "EXPENSE" 
                         ? "bg-[#ef4444] text-white shadow-lg shadow-red-200" 
                         : "text-slate-400 hover:text-slate-600"
                     }`}
                 >
-                    <div className={`w-3 h-0.5 md:w-4 md:h-1 rounded-full ${type === "EXPENSE" ? "bg-white" : "bg-slate-300"}`} />
                     Expense
                 </button>
                 <button 
                     type="button"
                     onClick={() => {
                         setType("INCOME")
+                        setTransferSubtype(null)
                         setSelectedCategoryName(null)
                     }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 md:py-4 rounded-[1.5rem] font-black text-[10px] md:text-xs uppercase tracking-widest transition-all ${
+                    className={`flex items-center justify-center gap-2 py-3 rounded-[1.5rem] font-black text-[9px] uppercase tracking-widest transition-all ${
                         type === "INCOME" 
                         ? "bg-[#008080] text-white shadow-lg shadow-teal-200" 
                         : "text-slate-400 hover:text-slate-600"
                     }`}
                 >
-                    <Plus className="w-4 h-4" />
                     Income
                 </button>
                 <button 
                     type="button"
                     onClick={() => {
                         setType("TRANSFER")
-                        setSelectedCategoryName("Transfer") // Special category
+                        setTransferSubtype("DEPOSIT")
+                        setSelectedCategoryName("Transfer")
+                        setSelectedAccountId(null) // From Cash
+                        if (accounts.length > 0) setToAccountId(accounts[0].id) // To first bank
                     }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 md:py-4 rounded-[1.5rem] font-black text-[10px] md:text-xs uppercase tracking-widest transition-all ${
-                        type === "TRANSFER" 
+                    className={`flex items-center justify-center gap-2 py-3 rounded-[1.5rem] font-black text-[9px] uppercase tracking-widest transition-all ${
+                        transferSubtype === "DEPOSIT" 
                         ? "bg-amber-500 text-white shadow-lg shadow-amber-200" 
                         : "text-slate-400 hover:text-slate-600"
                     }`}
                 >
-                    <ArrowRightLeft className="w-4 h-4" />
-                    Transfer
+                    <Download className="w-3 h-3" />
+                    Deposit
+                </button>
+                <button 
+                    type="button"
+                    onClick={() => {
+                        setType("TRANSFER")
+                        setTransferSubtype("WITHDRAW")
+                        setSelectedCategoryName("Transfer")
+                        if (accounts.length > 0) setSelectedAccountId(accounts[0].id) // From first bank
+                        setToAccountId("CASH") // To Cash
+                    }}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-[1.5rem] font-black text-[9px] uppercase tracking-widest transition-all ${
+                        transferSubtype === "WITHDRAW" 
+                        ? "bg-amber-500 text-white shadow-lg shadow-amber-200" 
+                        : "text-slate-400 hover:text-slate-600"
+                    }`}
+                >
+                    <Upload className="w-3 h-3" />
+                    Withdraw
                 </button>
             </div>
 
@@ -247,7 +269,7 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-                                {type === "TRANSFER" ? "From Account" : "Pay with / Receive to"}
+                                {transferSubtype === "DEPOSIT" ? "Source (Cash)" : transferSubtype === "WITHDRAW" ? "Withdraw From" : "Pay with / Receive to"}
                             </Label>
                             <select 
                                 value={selectedAccountId || "CASH"}
@@ -266,7 +288,9 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
 
                         {type === "TRANSFER" && (
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">To Account</Label>
+                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                                    {transferSubtype === "DEPOSIT" ? "Deposit To" : "Target (Cash)"}
+                                </Label>
                                 <select 
                                     value={toAccountId || "CASH"}
                                     onChange={(e) => setToAccountId(e.target.value)}
@@ -405,7 +429,8 @@ export function AddTransactionDialog({ categories = [], onSuccess }: { categorie
                     {isLoading || isPending ? "Processing..." : 
                      type === "EXPENSE" ? "Add Expense" : 
                      type === "INCOME" ? "Add Income" : 
-                     "Perform Transfer"}
+                     transferSubtype === "DEPOSIT" ? "Complete Deposit" :
+                     "Complete Withdrawal"}
                 </Button>
             </form>
         </div>

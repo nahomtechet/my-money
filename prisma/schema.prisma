@@ -26,9 +26,13 @@ model User {
   notifications     Notification[]
   bankAccounts      BankAccount[]
   pushSubscriptions PushSubscription[]
+  equbs             Equb[]
 
-  pushEnabled            Boolean @default(false)
-  budgetRemindersEnabled Boolean @default(true)
+  pushEnabled              Boolean @default(false)
+  budgetRemindersEnabled   Boolean @default(true)
+  telegramUsername         String?
+  telegramId               String?
+  telegramVerificationCode String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -102,6 +106,9 @@ model Transaction {
   bankAccountId String?
   bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
 
+  equbContribution EqubContribution?
+  equbPayout       EqubPayout?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -157,8 +164,12 @@ model Notification {
   id      String  @id @default(cuid())
   title   String
   message String
-  type    String // "INFO", "WARNING", "SUCCESS"
+  type    String // "INFO", "WARNING", "SUCCESS", "EQUB_REMINDER"
   read    Boolean @default(false)
+
+  // For actionable notifications
+  actionId   String? // e.g. contributionId
+  actionType String? // e.g. "MARK_EQUB_PAID"
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -175,6 +186,59 @@ model PushSubscription {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Equb {
+  id                 String   @id @default(cuid())
+  name               String
+  contributionAmount Float
+  frequency          String // "WEEKLY", "MONTHLY"
+  startDate          DateTime
+  totalCycles        Int
+  payoutCycle        Int // 1-based index
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  contributions EqubContribution[]
+  payout        EqubPayout?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EqubContribution {
+  id     String @id @default(cuid())
+  equbId String
+  equb   Equb   @relation(fields: [equbId], references: [id], onDelete: Cascade)
+
+  cycleNumber Int
+  amount      Float
+  date        DateTime
+
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  status    String   @default("PENDING") // "PENDING", "PAID"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EqubPayout {
+  id     String @id @default(cuid())
+  equbId String @unique
+  equb   Equb   @relation(fields: [equbId], references: [id], onDelete: Cascade)
+
+  amount Float
+  date   DateTime
+
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  status    String   @default("PENDING") // "PENDING", "RECEIVED"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

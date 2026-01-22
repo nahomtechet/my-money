@@ -200,6 +200,8 @@ export function TransactionsView({ initialTransactions, categories }: { initialT
                                     className="group relative bg-white/60 backdrop-blur-xl border border-white/40 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all flex items-center gap-4"
                                 >
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                        t.category?.name === "Transfer" 
+                                            ? (t.type === "INCOME" ? "bg-indigo-100 text-indigo-600" : "bg-amber-100 text-amber-600") :
                                         t.type === "INCOME" ? "bg-teal-100 text-teal-600" : "bg-rose-100 text-rose-600"
                                     }`}>
                                         <Icon className="w-5 h-5" />
@@ -208,13 +210,19 @@ export function TransactionsView({ initialTransactions, categories }: { initialT
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-0.5">
                                             <h3 className="font-bold text-slate-900 truncate pr-2">{t.description || "Unnamed"}</h3>
-                                            <span className={`font-black text-sm whitespace-nowrap ${t.type === "INCOME" ? "text-teal-600" : "text-slate-900"}`}>
-                                                {t.type === "INCOME" ? "+" : "-"}${t.amount.toLocaleString()}
+                                            <span className={`font-black text-sm whitespace-nowrap ${
+                                                t.category?.name === "Transfer" 
+                                                    ? (t.type === "INCOME" ? "text-indigo-600" : "text-amber-600") :
+                                                t.type === "INCOME" ? "text-teal-600" : "text-slate-900"
+                                            }`}>
+                                                {t.category?.name === "Transfer" ? "" : (t.type === "INCOME" ? "+" : "-")} {t.amount.toLocaleString()} <span className="text-[8px] opacity-40 uppercase tabular-nums font-bold">ETB</span>
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                                                {t.category?.name || "Uncategorized"} • {format(new Date(t.date), "MMM d")}
+                                                {t.category?.name === "Transfer" 
+                                                    ? (t.type === "INCOME" ? "Deposit" : "Withdrawal")
+                                                    : (t.category?.name || "Uncategorized")} • {format(new Date(t.date), "MMM d")}
                                             </p>
                                             
                                             <DropdownMenu>

@@ -9,14 +9,17 @@ import {
     Info, 
     CheckCheck,
     X,
-    BellOff
+    BellOff,
+    CalendarClock
 } from "lucide-react"
+import { toast } from "sonner"
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { getNotifications, deleteNotification, markAllAsRead } from "@/actions/notifications"
+import { getNotifications, deleteNotification, markAllAsRead, dismissNotification } from "@/actions/notifications"
+import { markContributionPaid } from "@/actions/equb"
 
 interface Notification {
     id: string
@@ -24,6 +27,8 @@ interface Notification {
     message: string
     type: string
     read: boolean
+    actionId?: string
+    actionType?: string
     createdAt: string
 }
 
@@ -75,7 +80,28 @@ export function NotificationPopover() {
         switch (type) {
             case "SUCCESS": return <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             case "WARNING": return <AlertCircle className="w-4 h-4 text-orange-500" />
+            case "EQUB_REMINDER": return <CalendarClock className="w-4 h-4 text-[#008080]" />
             default: return <Info className="w-4 h-4 text-blue-500" />
+        }
+    }
+
+    const handleAction = async (id: string, actionType: string, actionId: string, choice: "YES" | "NO") => {
+        try {
+            if (choice === "YES" && actionType === "MARK_EQUB_PAID") {
+                const result = await markContributionPaid(actionId)
+                if (result.error) {
+                    toast.error(result.error)
+                    return
+                }
+                toast.success("Payment recorded!")
+            }
+            
+            // Mark notification as read/dismissed in either case
+            await dismissNotification(id)
+            setNotifications(prev => prev.filter(n => n.id !== id))
+        } catch (error) {
+            console.error("Failed to process action:", error)
+            toast.error("Action failed")
         }
     }
 
@@ -140,6 +166,23 @@ export function NotificationPopover() {
                                             </button>
                                         </div>
                                         <p className="text-[10px] text-slate-500 leading-normal line-clamp-2">{n.message}</p>
+                                        
+                                        {n.type === "EQUB_REMINDER" && n.actionType && n.actionId && (
+                                            <div className="flex items-center gap-2 pt-2">
+                                                <button 
+                                                    onClick={() => handleAction(n.id, n.actionType!, n.actionId!, "YES")}
+                                                    className="h-7 px-4 rounded-lg bg-[#008080] text-white text-[9px] font-black uppercase tracking-widest hover:bg-[#006666] transition-colors"
+                                                >
+                                                    Yes, Pay
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleAction(n.id, n.actionType!, n.actionId!, "NO")}
+                                                    className="h-7 px-4 rounded-lg bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors"
+                                                >
+                                                    No
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

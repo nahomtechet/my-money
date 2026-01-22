@@ -3,6 +3,7 @@
 import { auth } from "@/auth"
 import prisma from "@/lib/prisma"
 import { startOfDay, subDays, endOfDay, format } from "date-fns"
+import { checkPendingEqubs } from "./notifications"
 
 export async function getDashboardData() {
   const session = await auth()
@@ -15,6 +16,9 @@ export async function getDashboardData() {
   const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+  // Sync Equb Reminders
+  await checkPendingEqubs()
 
   // Fetch all data in parallel
   const [
@@ -57,7 +61,11 @@ export async function getDashboardData() {
     .filter(t => t.type === 'EXPENSE' && t.category?.name !== 'Transfer')
     .reduce((sum, t) => sum + t.amount, 0)
 
-  const balance = income - expenses
+  const balance = transactions.reduce((sum, t) => {
+    if (t.type === 'INCOME') return sum + t.amount
+    if (t.type === 'EXPENSE') return sum - t.amount
+    return sum
+  }, 0)
 
   // --- Per Account Balances ---
   const accountsBalances = bankAccounts.map(acc => {
@@ -152,6 +160,19 @@ export async function getDashboardData() {
     }
   })
 
+  // --- Equb Impact ---
+  const pendingEqubContributionsCurrentMonth = await prisma.equbContribution.findMany({
+    where: {
+      equb: { userId },
+      status: "PENDING",
+      date: {
+        gte: now,
+        lte: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      }
+    }
+  })
+  const totalEqubObligation = pendingEqubContributionsCurrentMonth.reduce((sum, c) => sum + c.amount, 0)
+
   // Return aggregated data
   return {
     stats: {
@@ -170,8 +191,8 @@ export async function getDashboardData() {
     goalsCount: goals.length,
     projections: {
         dailyAvgExpense: parseFloat((expenses / (now.getDate() || 1)).toFixed(2)),
-        projectedEndMonthBalance: Math.round(balance - ((expenses / (now.getDate() || 1)) * (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))),
-        isPositive: (balance - ((expenses / (now.getDate() || 1)) * (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))) > 0
+        projectedEndMonthBalance: Math.round(balance - totalEqubObligation - ((expenses / (now.getDate() || 1)) * (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))),
+        isPositive: (balance - totalEqubObligation - ((expenses / (now.getDate() || 1)) * (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()))) > 0
     },
     budgetAlerts: budgets.map(b => {
         const spent = transactions

@@ -7,10 +7,23 @@ export async function PATCH(req: Request) {
         const session = await auth()
         if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 })
 
-        const { name, email, pushEnabled, budgetRemindersEnabled } = await req.json()
+        const { name, email, pushEnabled, budgetRemindersEnabled, telegramUsername, telegramId } = await req.json()
 
         if (!name || !email) {
             return new NextResponse("Name and Email are required", { status: 400 })
+        }
+
+        let verificationCode = undefined
+        if (telegramUsername) {
+            // Check if username changed or no code exists
+            const currentUser = await prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { telegramUsername: true, telegramVerificationCode: true }
+            })
+            
+            if (currentUser?.telegramUsername !== telegramUsername || !currentUser?.telegramVerificationCode) {
+                verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+            }
         }
 
         const updatedUser = await prisma.user.update({
@@ -19,7 +32,10 @@ export async function PATCH(req: Request) {
                 name, 
                 email,
                 pushEnabled: pushEnabled !== undefined ? pushEnabled : undefined,
-                budgetRemindersEnabled: budgetRemindersEnabled !== undefined ? budgetRemindersEnabled : undefined
+                budgetRemindersEnabled: budgetRemindersEnabled !== undefined ? budgetRemindersEnabled : undefined,
+                telegramUsername: telegramUsername !== undefined ? telegramUsername : undefined,
+                telegramId: telegramId !== undefined ? telegramId : undefined,
+                telegramVerificationCode: verificationCode
             }
         })
 
@@ -39,7 +55,10 @@ export async function PATCH(req: Request) {
                 name: updatedUser.name, 
                 email: updatedUser.email,
                 pushEnabled: updatedUser.pushEnabled,
-                budgetRemindersEnabled: updatedUser.budgetRemindersEnabled
+                budgetRemindersEnabled: updatedUser.budgetRemindersEnabled,
+                telegramUsername: updatedUser.telegramUsername,
+                telegramId: updatedUser.telegramId,
+                telegramVerificationCode: updatedUser.telegramVerificationCode
             } 
         })
     } catch (error) {
@@ -58,7 +77,10 @@ export async function GET() {
             name: true, 
             email: true,
             pushEnabled: true,
-            budgetRemindersEnabled: true
+            budgetRemindersEnabled: true,
+            telegramUsername: true,
+            telegramId: true,
+            telegramVerificationCode: true
         }
     })
 
