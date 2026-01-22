@@ -2,8 +2,8 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 export async function sendTelegramMessage(chatId: string, text: string) {
     if (!BOT_TOKEN) {
-        console.warn("TELEGRAM_BOT_TOKEN is not set. Skipping message.");
-        return;
+        console.warn("⚠️  TELEGRAM_BOT_TOKEN is not set. Skipping message.");
+        return false;
     }
 
     try {
@@ -20,14 +20,32 @@ export async function sendTelegramMessage(chatId: string, text: string) {
             }),
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Telegram API Error:", errorData);
+            console.error("❌ Telegram API Error:", {
+                status: response.status,
+                statusText: response.statusText,
+                error: data,
+                chatId,
+                messagePreview: text.substring(0, 100)
+            });
+            return false;
         }
         
-        return response.ok;
+        console.log("✅ Telegram message sent successfully:", {
+            chatId,
+            messageId: data.result?.message_id,
+            timestamp: new Date().toISOString()
+        });
+        
+        return true;
     } catch (error) {
-        console.error("Failed to send Telegram message:", error);
+        console.error("❌ Failed to send Telegram message:", {
+            error: error instanceof Error ? error.message : "Unknown error",
+            chatId,
+            messagePreview: text.substring(0, 100)
+        });
         return false;
     }
 }

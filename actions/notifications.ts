@@ -61,7 +61,12 @@ export async function checkPendingEqubs() {
         })
 
         if (user?.telegramId) {
-          await sendTelegramMessage(user.telegramId, `🔔 <b>Equb Reminder</b>\n\n${notification.message}`)
+          const sent = await sendTelegramMessage(user.telegramId, `🔔 <b>Equb Reminder</b>\n\n${notification.message}`)
+          if (sent) {
+            console.log(`📱 Telegram reminder sent for contribution ${contribution.id}`)
+          } else {
+            console.error(`❌ Failed to send Telegram reminder for contribution ${contribution.id}`)
+          }
         }
       }
     }
