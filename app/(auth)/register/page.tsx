@@ -88,7 +88,7 @@ export default function RegisterPage() {
                         id="name" 
                         name="name" 
                         type="text" 
-                        placeholder="John Doe" 
+                        placeholder="Your Name" 
                         required 
                         className="rounded-2xl h-14 bg-white/50 border-slate-200/60 font-bold px-12 focus:ring-primary/20 transition-all focus:bg-white"
                     />

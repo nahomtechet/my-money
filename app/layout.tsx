@@ -14,6 +14,15 @@ export const metadata: Metadata = {
   title: "MyMoney - Smart Personal Finance Tracker",
   description: "Track your income, expenses, and financial goals with ease. Built for smart financial management.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
