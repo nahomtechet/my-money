@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { AddGoalDialog } from "@/components/goals/add-goal-dialog"
+import { LogContributionDialog } from "@/components/goals/log-contribution-dialog"
 
 interface Goal {
     id: string
@@ -22,6 +23,12 @@ interface Goal {
     deadline: Date | null
     color: string | null
     icon: string | null
+    // Calculated fields
+    dailyTarget?: number
+    monthlyTarget?: number
+    remainingToday?: number
+    todayContributions?: number
+    daysRemaining?: number
 }
 
 interface GoalsViewProps {
@@ -154,10 +161,62 @@ export function GoalsView({ goals }: GoalsViewProps) {
                                         </div>
                                     </div>
 
-                                    <div className="pt-2 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                                    <div className="pt-2 flex justify-between items-center relative z-10">
+                                        <div className="flex flex-col gap-1">
+                                            {goal.dailyTarget && goal.dailyTarget > 0 ? (
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Daily Target</span>
+                                                    <span className="text-xs font-black text-slate-700">{goal.dailyTarget.toLocaleString()} ETB</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
+                                                    <span className="text-xs font-black text-slate-700">Not set</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <LogContributionDialog 
+                                            goalId={goal.id} 
+                                            goalName={goal.name} 
+                                            suggestedAmount={goal.remainingToday}
+                                        />
+                                    </div>
+                                    
+                                    {goal.dailyTarget && goal.dailyTarget > 0 && (
+                                        <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100/50 relative z-10">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${goal.remainingToday === 0 ? "bg-teal-500" : "bg-orange-400"}`} />
+                                                    Today&apos;s Progress
+                                                </span>
+                                                <span className="text-[10px] font-black text-slate-600 tracking-tight">
+                                                    {(goal.todayContributions || 0).toLocaleString()} / {goal.dailyTarget.toLocaleString()} ETB
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-white rounded-full overflow-hidden">
+                                                <motion.div 
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${Math.min(((goal.todayContributions || 0) / (goal.dailyTarget || 1)) * 100, 100)}%` }}
+                                                    className={`h-full ${goal.remainingToday === 0 ? "bg-teal-500" : (goal.color || "bg-blue-500")}`}
+                                                />
+                                            </div>
+                                            {goal.remainingToday && goal.remainingToday > 0 ? (
+                                                <p className="text-[9px] font-bold text-orange-600 mt-2 text-center uppercase tracking-tighter">
+                                                    ⚠️ {goal.remainingToday.toLocaleString()} ETB left for today
+                                                </p>
+                                            ) : (
+                                                <p className="text-[9px] font-bold text-teal-600 mt-2 text-center uppercase tracking-tighter">
+                                                    ✨ Today&apos;s target achieved!
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
+                                        <Link href={`/goals/${goal.id}`} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 flex items-center gap-1">
                                             Details <ArrowRight className="w-3 h-3" />
-                                        </button>
+                                        </Link>
                                     </div>
                                 </GlassCard>
                             )

@@ -1,5 +1,7 @@
 "use client"
 
+import { motion } from "framer-motion"
+
 import { useState, useEffect } from "react"
 import { 
   Dialog,
@@ -15,6 +17,7 @@ import {
 } from "lucide-react"
 import { createGoal } from "@/actions/goals"
 import { useRouter } from "next/navigation"
+import { format } from "date-fns"
 
 const COLORS = [
     { name: "Teal", class: "bg-teal-500" },
@@ -50,12 +53,23 @@ const PREDICTIVE_KEYWORDS: Record<string, string> = {
     "emergency": "Shield", "fund": "Shield", "save": "Shield"
 }
 
+const DURATIONS = [
+    { label: "1 Mo", value: 1 },
+    { label: "2 Mo", value: 2 },
+    { label: "3 Mo", value: 3 },
+    { label: "4 Mo", value: 4 },
+    { label: "6 Mo", value: 6 },
+]
+
 export function AddGoalDialog() {
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [selectedColor, setSelectedColor] = useState(COLORS[0].class)
     const [goalName, setGoalName] = useState("")
     const [selectedIconName, setSelectedIconName] = useState<string>("Target")
+    const [selectedDuration, setSelectedDuration] = useState<number | null>(DURATIONS[0].value)
+    const [customDeadline, setCustomDeadline] = useState("")
+    const [isCustomMode, setIsCustomMode] = useState(false)
     const router = useRouter()
 
     // Predictive Icon Logic
@@ -85,6 +99,13 @@ export function AddGoalDialog() {
         formData.append("color", selectedColor)
         formData.append("icon", selectedIconName)
 
+        // Calculate deadline if using presets
+        if (!isCustomMode && selectedDuration) {
+            const date = new Date()
+            date.setMonth(date.getMonth() + selectedDuration)
+            formData.set("deadline", date.toISOString().split('T')[0])
+        }
+
         const result = await createGoal(formData)
         
         setIsLoading(false)
@@ -92,6 +113,9 @@ export function AddGoalDialog() {
             setOpen(false)
             setGoalName("")
             setSelectedIconName("Target")
+            setCustomDeadline("")
+            setSelectedDuration(DURATIONS[0].value)
+            setIsCustomMode(false)
             router.refresh()
         }
     }
@@ -142,13 +166,54 @@ export function AddGoalDialog() {
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Target Date</label>
-                        <input 
-                            name="deadline"
-                            type="date"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                        />
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <label 
+                                onClick={() => setIsCustomMode(!isCustomMode)}
+                                className="text-[10px] uppercase font-bold text-slate-500 tracking-wider cursor-pointer hover:text-teal-600 transition-colors flex items-center gap-2"
+                            >
+                                Target Date {isCustomMode ? "(Specific Date)" : "(Duration)"}
+                                <span className="text-[8px] font-normal lowercase bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">click to switch</span>
+                            </label>
+                        </div>
+
+                        {!isCustomMode ? (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="grid grid-cols-5 gap-2"
+                            >
+                                {DURATIONS.map((d) => (
+                                    <button
+                                        key={d.value}
+                                        type="button"
+                                        onClick={() => setSelectedDuration(d.value)}
+                                        className={`py-2 rounded-xl text-[10px] font-black transition-all border ${selectedDuration === d.value ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                    >
+                                        {d.label}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                            >
+                                <input 
+                                    name="deadline"
+                                    type="date"
+                                    value={customDeadline}
+                                    onChange={(e) => setCustomDeadline(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                                />
+                            </motion.div>
+                        )}
+                        
+                        {!isCustomMode && selectedDuration && (
+                            <p className="text-[10px] font-bold text-teal-600 px-1">
+                                Goal sets for: {format(new Date(new Date().setMonth(new Date().getMonth() + selectedDuration)), "MMM d, yyyy")}
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-2">

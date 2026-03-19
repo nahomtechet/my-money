@@ -76,6 +76,50 @@ export async function handleQuickLog(chatId: string, text: string) {
 }
 
 /**
+ * FEATURE: Goal Contributions
+ */
+export async function handleGoalSave(chatId: string, text: string) {
+    const user = await getUserByChatId(chatId)
+    if (!user) return false
+
+    // Pattern: "Save 1000 Laptop" or "Save 1000 for Laptop"
+    const match = text.match(/save\s+(\d+)\s+(?:for\s+)?(.+)/i)
+    if (!match) return false
+
+    const amount = parseFloat(match[1])
+    const goalName = match[2].trim()
+
+    try {
+        const goal = await prisma.goal.findFirst({
+            where: {
+                userId: user.id,
+                name: { contains: goalName, mode: 'insensitive' }
+            }
+        })
+
+        if (!goal) {
+            await sendTelegramMessage(chatId, `❌ <b>Goal not found:</b> "${goalName}"`)
+            return true
+        }
+
+        await prisma.goalContribution.create({
+            data: {
+                goalId: goal.id,
+                amount,
+                date: new Date()
+            }
+        })
+
+        await sendTelegramMessage(chatId, `✅ <b>Saved!</b>\n\n<b>Amount:</b> ${amount.toLocaleString()} ETB\n<b>Goal:</b> ${goal.name}`)
+        return true
+    } catch (error) {
+        console.error("Goal Save Error:", error)
+        await sendTelegramMessage(chatId, "❌ Failed to record saving.")
+        return true
+    }
+}
+
+/**
  * FEATURE 2: Balance & Status Queries
  */
 export async function handleBalanceQuery(chatId: string) {
@@ -221,7 +265,10 @@ export async function handleWeeklyReport(chatId: string) {
             `💰 <b>Net Savings:</b> ${(income - expenses).toLocaleString()} ETB`,
             "",
             "🏷️ <b>Top Expense Categories:</b>",
-            topCategories || "No expenses recorded this week."
+            topCategories || "No expenses recorded this week.",
+            "",
+            "💡 <b>Tip:</b> Use <code>Save [amount] [goal]</code> to record savings!",
+            "e.g., <code>Save 1000 Laptop</code>"
         ].join("\n")
 
         await sendTelegramMessage(chatId, report)

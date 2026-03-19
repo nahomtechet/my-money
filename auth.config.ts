@@ -7,9 +7,18 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const isOnDashboard = nextUrl.pathname.startsWith('/') && !nextUrl.pathname.startsWith('/login') && !nextUrl.pathname.startsWith('/register')
+      const isPublicRoute = 
+        nextUrl.pathname.startsWith('/login') || 
+        nextUrl.pathname.startsWith('/register') || 
+        nextUrl.pathname === '/manifest.json' ||
+        nextUrl.pathname === '/manifest.webmanifest' ||
+        nextUrl.pathname.startsWith('/icon-') ||
+        nextUrl.pathname === '/apple-touch-icon.png' ||
+        nextUrl.pathname === '/favicon.ico'
       
-      if (isOnDashboard) {
+      const isOnProtectedLine = !isPublicRoute && nextUrl.pathname.startsWith('/')
+      
+      if (isOnProtectedLine) {
         if (isLoggedIn) return true
         return false // Redirect to login
       }

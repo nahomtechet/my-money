@@ -8,7 +8,8 @@ import {
     handleBalanceQuery, 
     handleSummaryQuery, 
     handleEqubQuery,
-    handleWeeklyReport 
+    handleWeeklyReport,
+    handleGoalSave
 } from "@/actions/telegram";
 
 export async function POST(req: Request) {
@@ -44,6 +45,29 @@ export async function POST(req: Request) {
                 }
 
                 // Answer callback query to remove loading state in Telegram
+                const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+                if (BOT_TOKEN) {
+                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ callback_query_id: callback.id })
+                    });
+                }
+            } else if (data.startsWith("save_goal:")) {
+                const goalId = data.split(":")[1];
+                
+                // For now, since we can't easily do a multi-step form via simple webhook without state,
+                // we'll ask the user to type the amount in a specific format.
+                const goal = await prisma.goal.findUnique({
+                    where: { id: goalId },
+                    select: { name: true }
+                });
+
+                if (goal) {
+                    await sendTelegramMessage(chatId, `💰 <b>Recording saving for ${goal.name}</b>\n\nPlease reply with the amount you saved today.\nFormat: <code>Save [amount] for ${goal.name}</code>\ne.g., <code>Save 1000 for ${goal.name}</code>`);
+                }
+
+                // Answer callback query
                 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
                 if (BOT_TOKEN) {
                     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
@@ -152,7 +176,11 @@ export async function POST(req: Request) {
             return new NextResponse("OK", { status: 200 });
         } 
 
-        // 5. Try Quick Logging (Description Amount)
+        // 5. Try Goal Saving (Save 1000 Laptop)
+        const saved = await handleGoalSave(chatId, text);
+        if (saved) return new NextResponse("OK", { status: 200 });
+
+        // 6. Try Quick Logging (Description Amount)
         const logged = await handleQuickLog(chatId, text);
         if (!logged) {
             await sendTelegramMessage(chatId, "🤔 I'm not sure what you mean. Type /help to see available commands or just send something like 'Lunch 200' to log an expense.");

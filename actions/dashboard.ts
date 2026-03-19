@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import prisma from "@/lib/prisma"
 import { startOfDay, subDays, endOfDay, format } from "date-fns"
-import { checkPendingEqubs } from "./notifications"
+import { checkPendingEqubs, checkSavingsGoals } from "./notifications"
 
 export async function getDashboardData() {
   const session = await auth()
@@ -17,8 +17,11 @@ export async function getDashboardData() {
   const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
 
-  // Sync Equb Reminders
-  await checkPendingEqubs()
+  // Sync Equb & Savings Reminders
+  await Promise.all([
+    checkPendingEqubs(),
+    checkSavingsGoals()
+  ])
 
   // Fetch all data in parallel
   const [

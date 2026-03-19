@@ -54,6 +54,15 @@ export async function createNotification(data: {
             };
         }
 
+        // If it's an actionable Savings reminder, add the button
+        if (data.actionType === "MARK_GOAL_SAVED" && data.actionId) {
+            replyMarkup = {
+                inline_keyboard: [[
+                    { text: "💰 Record Saving", callback_data: `save_goal:${data.actionId}` }
+                ]]
+            };
+        }
+
         const sentMessageId = await sendTelegramMessage(user.telegramId, text, replyMarkup);
 
         if (sentMessageId) {
@@ -121,6 +130,83 @@ export async function checkPendingEqubs() {
   } catch (error) {
     console.error("Failed to check pending Equbs:", error)
     return { error: "Failed to check pending Equbs" }
+  }
+}
+
+export async function checkSavingsGoals() {
+  const session = await auth()
+  if (!session?.user?.id) return { error: "Unauthorized" }
+
+  const today = new Date()
+  const todayStart = startOfDay(today)
+
+  try {
+    const goals = await prisma.goal.findMany({
+      where: {
+        userId: session.user.id,
+        deadline: {
+          not: null
+        }
+      },
+      include: {
+        contributions: true
+      }
+    })
+    for (const goal of goals) {
+      // 1. Calculate progress (Cumulative Logic)
+      const totalSaved = goal.contributions.reduce((sum, c) => sum + c.amount, 0)
+      if (totalSaved >= goal.targetValue) continue // Goal already reached
+
+      const deadline = new Date(goal.deadline!)
+      const createdAt = new Date(goal.createdAt)
+      const today = new Date()
+      const todayStart = startOfDay(today)
+
+      // Total days from creation to deadline
+      const totalDays = Math.max(1, Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)))
+      const fixedDailyTarget = goal.targetValue / totalDays
+      
+      // Days passed including today
+      const daysPassed = Math.max(0, Math.floor((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)))
+      const targetToDate = fixedDailyTarget * (daysPassed + 1)
+      
+      const remainingToday = Math.max(0, Math.round(targetToDate - totalSaved))
+
+      if (remainingToday > 0) {
+        // 2. User still needs to save today. Check if notification already exists
+        const existing = await prisma.notification.findFirst({
+          where: {
+            userId: session.user.id,
+            actionId: goal.id,
+            actionType: "MARK_GOAL_SAVED",
+            createdAt: {
+              gte: todayStart
+            }
+          }
+        })
+
+        if (!existing) {
+          const todaySaved = goal.contributions
+            .filter(c => new Date(c.date) >= todayStart)
+            .reduce((sum, c) => sum + c.amount, 0)
+
+          await createNotification({
+            userId: session.user.id,
+            title: `Savings Goal: ${goal.name} 💰`,
+            message: `Hi! Don't forget to save for your goal "${goal.name}". Your daily target is ${Math.round(fixedDailyTarget).toLocaleString()} ETB. You've saved ${todaySaved.toLocaleString()} ETB so far today. Still need ${remainingToday.toLocaleString()} ETB to stay on track!`,
+            type: "INFO",
+            actionId: goal.id,
+            actionType: "MARK_GOAL_SAVED"
+          })
+          console.log(`📱 Processed savings reminder for goal ${goal.id}`)
+        }
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Failed to check savings goals:", error)
+    return { error: "Failed to check savings goals" }
   }
 }
 
